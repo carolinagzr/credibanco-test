@@ -1,90 +1,36 @@
-module "api_gateway" {
-  source = "terraform-aws-modules/apigateway-v2/aws"
-
-  name          = "dev-http"
-  description   = "My awesome HTTP API Gateway"
+# Crear el API Gateway
+resource "aws_apigatewayv2_api" "my_api" {
+  name          = "MiApiGateway"
   protocol_type = "HTTP"
+}
 
-  cors_configuration = {
-    allow_headers = ["content-type", "x-amz-date", "authorization", "x-api-key", "x-amz-security-token", "x-amz-user-agent"]
-    allow_methods = ["*"]
-    allow_origins = ["*"]
-  }
+# Crear la integración entre el API Gateway y Lambda
+resource "aws_apigatewayv2_integration" "lambda_integration" {
+  api_id           = aws_apigatewayv2_api.my_api.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.my_lambda.invoke_arn
+  payload_format_version = "2.0"
+}
 
-  # Custom domain
-  #domain_name = "terraform-aws-modules.modules.tf"
+# Crear la ruta en el API Gateway para invocar la Lambda
+resource "aws_apigatewayv2_route" "lambda_route" {
+  api_id    = aws_apigatewayv2_api.my_api.id
+  route_key = "GET /lambda"  # Método y path para acceder a la Lambda
+  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+}
 
-  # Access logs
-#   stage_access_log_settings = {
-#     create_log_group            = true
-#     log_group_retention_in_days = 7
-#     format = jsonencode({
-#       context = {
-#         domainName              = "$context.domainName"
-#         integrationErrorMessage = "$context.integrationErrorMessage"
-#         protocol                = "$context.protocol"
-#         requestId               = "$context.requestId"
-#         requestTime             = "$context.requestTime"
-#         responseLength          = "$context.responseLength"
-#         routeKey                = "$context.routeKey"
-#         stage                   = "$context.stage"
-#         status                  = "$context.status"
-#         error = {
-#           message      = "$context.error.message"
-#           responseType = "$context.error.responseType"
-#         }
-#         identity = {
-#           sourceIP = "$context.identity.sourceIp"
-#         }
-#         integration = {
-#           error             = "$context.integration.error"
-#           integrationStatus = "$context.integration.integrationStatus"
-#         }
-#       }
-#     })
-#   }
+# Crear la etapa de despliegue para el API Gateway
+resource "aws_apigatewayv2_stage" "default_stage" {
+  api_id      = aws_apigatewayv2_api.my_api.id
+  name        = "$default"
+  auto_deploy = true
+}
 
-  # Authorizer(s)
- /* authorizers = {
-    "azure" = {
-      authorizer_type  = "JWT"
-      identity_sources = ["$request.header.Authorization"]
-      name             = "azure-auth"
-      jwt_configuration = {
-        audience         = ["d6a38afd-45d6-4874-d1aa-3c5c558aqcc2"]
-        issuer           = "https://sts.windows.net/aaee026e-8f37-410e-8869-72d9154873e4/"
-      }
-    }
-  }*/
-
-  # Routes & Integration(s)
-  routes = {
-    "POST /" = {
-      integration = {
-        uri                    = aws_lambda_function.lambda_function_test.arn
-        payload_format_version = "2.0"
-        timeout_milliseconds   = 12000
-      }
-    }
-
-    "GET /some-route" = {
-      //authorizer_key = "azure"
-
-      integration = {
-        type = "HTTP_PROXY"
-        uri  = "some url"
-      }
-    }
-
-    "$default" = {
-      integration = {
-        uri = aws_lambda_function.lambda_function_test.arn
-      }
-    }
-  }
-
-  tags = {
-    Environment = "dev"
-    Terraform   = "true"
-  }
+# Dar permisos a API Gateway para invocar la función Lambda
+resource "aws_lambda_permission" "apigw_lambda" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.my_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.my_api.execution_arn}/*"
 }
