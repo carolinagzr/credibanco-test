@@ -37,9 +37,14 @@ resource "aws_iam_policy" "policy_logs_lambda" {
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents",
+          "dynamodb:*",
         ]
         Effect   = "Allow"
-        Resource = "arn:aws:logs:*:*:*"
+        Resource = [
+            "arn:aws:logs:*:*:*",
+            "arn:aws:dynamodb:*:*:*"
+        ]
+        
 
       },
     ]
