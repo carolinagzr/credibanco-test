@@ -10,7 +10,7 @@ resource "aws_sns_topic_subscription" "email_subscription" {
 resource "aws_cloudwatch_event_rule" "dynamodb_stream_rule" {
   name        = "dynamodb-stream-rule"
   description = "Captura eventos de la tabla DynamoDB"
-   #∫ "detail-type": ["AWS API Call via CloudTrail"],
+
   event_pattern = <<PATTERN
 {
   "source": ["aws.dynamodb"],
@@ -27,7 +27,6 @@ resource "aws_cloudwatch_event_target" "sns_target" {
   arn  = aws_sns_topic.dynamodb_event_notifications.arn
 }
 
-# Crear los permisos necesarios para que EventBridge pueda publicar en SNS
 resource "aws_iam_role" "eventbridge_to_sns_role" {
   name = "eventbridge-to-sns-role"
 
